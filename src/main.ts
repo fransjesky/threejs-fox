@@ -19,7 +19,7 @@ const params = {
 
 // camera
 const camera = new THREE.PerspectiveCamera(
-  45,
+  60,
   params.width / params.height,
   0.1,
   100
@@ -31,16 +31,22 @@ scene.add(camera);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
-controls.autoRotate = false;
+controls.minPolarAngle = 0.75;
+controls.maxPolarAngle = Math.PI * 0.475;
 
 // models loader
 let mixer: THREE.AnimationMixer | null = null;
 let foxModel = null;
+let idleAction: THREE.AnimationAction | null = null;
+let walkAction: THREE.AnimationAction | null = null;
+let runAction: THREE.AnimationAction | null = null;
 
 gltfLoader.load('models/Fox/glTF/Fox.gltf', (gltf) => {
   mixer = new THREE.AnimationMixer(gltf.scene);
   foxModel = gltf.scene;
-  const walkAction = mixer.clipAction(gltf.animations[1]);
+  idleAction = mixer.clipAction(gltf.animations[0]);
+  walkAction = mixer.clipAction(gltf.animations[1]);
+  runAction = mixer.clipAction(gltf.animations[2]);
   walkAction.play();
 
   foxModel.scale.set(0.01, 0.01, 0.01);
@@ -50,6 +56,7 @@ gltfLoader.load('models/Fox/glTF/Fox.gltf', (gltf) => {
     child.receiveShadow = true;
   });
 
+  controls.target = foxModel.position;
   scene.add(foxModel);
 });
 
@@ -93,16 +100,66 @@ window.addEventListener('resize', () => {
 });
 
 // debuggers
-const cameraDebug = gui.addFolder('Camera');
+const debugParams = {
+  resetCam: () => {
+    camera.fov = 60;
+    camera.position.set(2, 2, 5);
+    camera.updateProjectionMatrix();
+    controls.dampingFactor = 0.05;
+  },
+  idleAnimation: () => {
+    if (idleAction && walkAction && runAction) {
+      walkAction.stop();
+      runAction.stop();
+      idleAction.play();
+    }
+  },
+  walkAnimation: () => {
+    if (idleAction && walkAction && runAction) {
+      idleAction.stop();
+      runAction.stop();
+      walkAction.play();
+    }
+  },
+  runAnimation: () => {
+    if (idleAction && walkAction && runAction) {
+      idleAction.stop();
+      walkAction.stop();
+      runAction.play();
+    }
+  },
+  disableAnimation: () => {
+    if (idleAction && walkAction && runAction) {
+      idleAction.stop();
+      walkAction.stop();
+      runAction.stop();
+    }
+  },
+};
+
+// camera debug
+const cameraDebug = gui.addFolder('Camera').open();
 cameraDebug.add(controls, 'autoRotate').name('Auto Rotate Cam');
+cameraDebug
+  .add(camera, 'fov')
+  .min(45)
+  .max(75)
+  .name('Camera FOV')
+  .onChange(() => camera.updateProjectionMatrix())
+  .listen(true)
+  .updateDisplay();
 cameraDebug
   .add(controls, 'dampingFactor')
   .min(0)
   .max(0.1)
   .step(0.01)
-  .name('Damping Factor');
+  .name('Damping Factor')
+  .listen(true)
+  .updateDisplay();
+cameraDebug.add(debugParams, 'resetCam').name('Reset Camera Settings');
 
-const lightDebug = gui.addFolder('Lighting');
+// lighting debug
+const lightDebug = gui.addFolder('Lighting').open();
 lightDebug.add(ground, 'receiveShadow').name('Enable Shadow');
 lightDebug
   .add(ambientLight, 'intensity')
@@ -116,6 +173,13 @@ lightDebug
   .max(1)
   .step(0.1)
   .name('Light Intensity');
+
+// fox debug
+const foxDebug = gui.addFolder('Fox Animation').open();
+foxDebug.add(debugParams, 'idleAnimation').name('Idle');
+foxDebug.add(debugParams, 'walkAnimation').name('Walk');
+foxDebug.add(debugParams, 'runAnimation').name('Run');
+foxDebug.add(debugParams, 'disableAnimation').name('Disable');
 
 const clock = new THREE.Clock();
 let prevElapsedTime = 0;
