@@ -8,6 +8,7 @@ import GUI from 'lil-gui';
 const canvas = document.querySelector('canvas') as HTMLCanvasElement;
 const scene = new THREE.Scene();
 const gltfLoader = new GLTFLoader();
+const textureLoader = new THREE.TextureLoader();
 const gui = new GUI();
 const stats = new Stats();
 stats.showPanel(0);
@@ -59,6 +60,52 @@ gltfLoader.load('models/Fox/glTF/Fox.gltf', (gltf) => {
   controls.target = foxModel.position;
   scene.add(foxModel);
 });
+
+// particles
+const particlesCount = 480;
+const positions = new Float32Array(particlesCount * 3);
+
+for (let i = 0; i < particlesCount; i++) {
+  const i3 = i * 3;
+  positions[i3] = (Math.random() - 0.5) * 15;
+  positions[i3 + 1] = Math.abs((Math.random() - 0.5) * 15);
+  positions[i3 + 2] = (Math.random() - 0.5) * 15;
+}
+
+const particleGeometry = new THREE.BufferGeometry();
+const particleTexture = textureLoader.load('textures/snow.png');
+const particleMaterial = new THREE.PointsMaterial({
+  color: 0xf0f8ff,
+  map: particleTexture,
+  transparent: true,
+  alphaMap: particleTexture,
+  size: 0.15,
+  sizeAttenuation: true,
+  depthWrite: true,
+});
+
+particleGeometry.setAttribute(
+  'position',
+  new THREE.BufferAttribute(positions, 3)
+);
+
+const particles = new THREE.Points(particleGeometry, particleMaterial);
+scene.add(particles);
+
+const animateParticles = (time: number) => {
+  for (let i = 0; i < particlesCount; i++) {
+    const i3 = i * 3;
+    positions[i3 + 1] -= 0.2 * time * 2;
+    if (positions[i3 + 1] <= 0) {
+      positions[i3 + 1] = Math.abs(Math.random() * 3 + 5);
+    }
+  }
+
+  particleGeometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(positions, 3)
+  );
+};
 
 // ground object
 const groundGeometry = new THREE.PlaneGeometry(10, 10);
@@ -192,6 +239,7 @@ const tick = () => {
 
   // animations
   if (mixer) mixer.update(deltaTime);
+  animateParticles(deltaTime);
 
   // constant update
   controls.update();
