@@ -18,6 +18,10 @@ const params = {
   height: window.innerHeight,
 };
 
+// fog
+const fog = new THREE.Fog(0xffffff, 3, 20);
+scene.fog = fog;
+
 // camera
 const camera = new THREE.PerspectiveCamera(
   60,
@@ -32,8 +36,12 @@ scene.add(camera);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
+controls.enablePan = false;
+controls.minDistance = 2;
+controls.maxDistance = 25;
 controls.minPolarAngle = 0.75;
 controls.maxPolarAngle = Math.PI * 0.475;
+controls.autoRotate = true;
 
 // models loader
 let mixer: THREE.AnimationMixer | null = null;
@@ -48,7 +56,7 @@ gltfLoader.load('models/Fox/glTF/Fox.gltf', (gltf) => {
   idleAction = mixer.clipAction(gltf.animations[0]);
   walkAction = mixer.clipAction(gltf.animations[1]);
   runAction = mixer.clipAction(gltf.animations[2]);
-  walkAction.play();
+  idleAction.play();
 
   foxModel.scale.set(0.01, 0.01, 0.01);
 
@@ -57,29 +65,33 @@ gltfLoader.load('models/Fox/glTF/Fox.gltf', (gltf) => {
     child.receiveShadow = true;
   });
 
-  controls.target = foxModel.position;
+  controls.target = new THREE.Vector3(
+    foxModel.position.x,
+    foxModel.position.y + 0.5,
+    foxModel.position.z
+  );
   scene.add(foxModel);
 });
 
 // particles
-const particlesCount = 480;
+const particlesCount = 4800;
 const positions = new Float32Array(particlesCount * 3);
 
 for (let i = 0; i < particlesCount; i++) {
   const i3 = i * 3;
-  positions[i3] = (Math.random() - 0.5) * 15;
-  positions[i3 + 1] = Math.abs((Math.random() - 0.5) * 15);
-  positions[i3 + 2] = (Math.random() - 0.5) * 15;
+  positions[i3] = (Math.random() - 0.5) * 50;
+  positions[i3 + 1] = Math.abs((Math.random() - 0.5) * 50);
+  positions[i3 + 2] = (Math.random() - 0.5) * 50;
 }
 
 const particleGeometry = new THREE.BufferGeometry();
-const particleTexture = textureLoader.load('textures/snow.png');
+const particleTexture = textureLoader.load('textures/particles/snow.png');
 const particleMaterial = new THREE.PointsMaterial({
   color: 0xf0f8ff,
   map: particleTexture,
   transparent: true,
   alphaMap: particleTexture,
-  size: 0.15,
+  size: 0.175,
   sizeAttenuation: true,
   depthWrite: true,
 });
@@ -96,7 +108,7 @@ const animateParticles = (time: number) => {
   for (let i = 0; i < particlesCount; i++) {
     const i3 = i * 3;
     positions[i3 + 1] -= 0.2 * time * 2;
-    if (positions[i3 + 1] <= 0) {
+    if (positions[i3 + 1] <= 0.1) {
       positions[i3 + 1] = Math.abs(Math.random() * 3 + 5);
     }
   }
@@ -108,9 +120,36 @@ const animateParticles = (time: number) => {
 };
 
 // ground object
-const groundGeometry = new THREE.PlaneGeometry(10, 10);
-const groundMaterial = new THREE.MeshStandardMaterial();
+const groundGeometry = new THREE.PlaneGeometry(50, 50, 100, 100);
+const groundAoTexture = textureLoader.load('textures/objects/Snow/ao.jpg');
+const groundColorTexture = textureLoader.load(
+  'textures/objects/Snow/color.jpg'
+);
+const groundHeightTexture = textureLoader.load(
+  'textures/objects/Snow/height.png'
+);
+const groundNormalTexture = textureLoader.load(
+  'textures/objects/Snow/normal.jpg'
+);
+const groundRoughTexture = textureLoader.load(
+  'textures/objects/Snow/rough.jpg'
+);
+
+const groundMaterial = new THREE.MeshStandardMaterial({
+  metalness: 0,
+  aoMap: groundAoTexture,
+  map: groundColorTexture,
+  displacementMap: groundHeightTexture,
+  displacementScale: 0.1,
+  normalMap: groundNormalTexture,
+  roughnessMap: groundRoughTexture,
+});
+
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.geometry.setAttribute(
+  'uv2',
+  new THREE.Float32BufferAttribute(ground.geometry.attributes.uv.array, 2)
+);
 ground.rotation.x = -Math.PI * 0.5;
 ground.receiveShadow = true;
 scene.add(ground);
