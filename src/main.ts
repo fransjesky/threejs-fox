@@ -41,11 +41,11 @@ controls.minDistance = 2;
 controls.maxDistance = 25;
 controls.minPolarAngle = 0.75;
 controls.maxPolarAngle = Math.PI * 0.475;
-controls.autoRotate = true;
+controls.autoRotate = false;
 
 // models loader
 let mixer: THREE.AnimationMixer | null = null;
-let foxModel = null;
+let foxModel: THREE.Group | null = null;
 let idleAction: THREE.AnimationAction | null = null;
 let walkAction: THREE.AnimationAction | null = null;
 let runAction: THREE.AnimationAction | null = null;
