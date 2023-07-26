@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import Stats from 'stats.js';
 import GUI from 'lil-gui';
 
@@ -9,6 +10,7 @@ const canvas = document.querySelector('canvas') as HTMLCanvasElement;
 const scene = new THREE.Scene();
 const gltfLoader = new GLTFLoader();
 const textureLoader = new THREE.TextureLoader();
+const rgbeLoader = new RGBELoader();
 const gui = new GUI();
 const stats = new Stats();
 stats.showPanel(0);
@@ -19,8 +21,15 @@ const params = {
 };
 
 // fog
-const fog = new THREE.Fog(0xffffff, 3, 20);
+const fog = new THREE.Fog(0xf0f8ff, 0, 50);
 scene.fog = fog;
+
+// environment map
+rgbeLoader.load('textures/environmentMap/puresky.hdr', (envMap) => {
+  envMap.mapping = THREE.EquirectangularReflectionMapping;
+  scene.background = envMap;
+  scene.environment = envMap;
+});
 
 // camera
 const camera = new THREE.PerspectiveCamera(
@@ -29,17 +38,17 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100
 );
-camera.position.x = 2;
-camera.position.y = 2;
-camera.position.z = 5;
+camera.position.x = -5;
+camera.position.y = 0;
+camera.position.z = -5;
 scene.add(camera);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.enablePan = false;
 controls.minDistance = 2;
-controls.maxDistance = 25;
-controls.minPolarAngle = 0.75;
+controls.maxDistance = 12.5;
+controls.minPolarAngle = 1.15;
 controls.maxPolarAngle = Math.PI * 0.475;
 controls.autoRotate = false;
 
@@ -56,10 +65,10 @@ gltfLoader.load('models/Fox/glTF/Fox.gltf', (gltf) => {
   idleAction = mixer.clipAction(gltf.animations[0]);
   walkAction = mixer.clipAction(gltf.animations[1]);
   runAction = mixer.clipAction(gltf.animations[2]);
-  idleAction.play();
+  runAction.play();
 
-  foxModel.scale.set(0.01, 0.01, 0.01);
-
+  foxModel.scale.set(0.02, 0.02, 0.02);
+  foxModel.position.set(0, 0, 0);
   foxModel.children[0].traverse((child) => {
     child.castShadow = true;
     child.receiveShadow = true;
@@ -70,18 +79,19 @@ gltfLoader.load('models/Fox/glTF/Fox.gltf', (gltf) => {
     foxModel.position.y + 0.5,
     foxModel.position.z
   );
+
   scene.add(foxModel);
 });
 
 // particles
-const particlesCount = 4800;
+const particlesCount = 8000;
 const positions = new Float32Array(particlesCount * 3);
 
 for (let i = 0; i < particlesCount; i++) {
   const i3 = i * 3;
-  positions[i3] = (Math.random() - 0.5) * 50;
-  positions[i3 + 1] = Math.abs((Math.random() - 0.5) * 50);
-  positions[i3 + 2] = (Math.random() - 0.5) * 50;
+  positions[i3] = (Math.random() - 0.5) * 100;
+  positions[i3 + 1] = Math.abs((Math.random() - 0.5) * 100);
+  positions[i3 + 2] = (Math.random() - 0.5) * 100;
 }
 
 const particleGeometry = new THREE.BufferGeometry();
@@ -91,7 +101,7 @@ const particleMaterial = new THREE.PointsMaterial({
   map: particleTexture,
   transparent: true,
   alphaMap: particleTexture,
-  size: 0.175,
+  size: 0.2,
   sizeAttenuation: true,
   depthWrite: true,
 });
@@ -107,7 +117,7 @@ scene.add(particles);
 const animateParticles = (time: number) => {
   for (let i = 0; i < particlesCount; i++) {
     const i3 = i * 3;
-    positions[i3 + 1] -= 0.2 * time * 2;
+    positions[i3 + 1] -= 0.5 * time * 2;
     if (positions[i3 + 1] <= 0.1) {
       positions[i3 + 1] = Math.abs(Math.random() * 3 + 5);
     }
@@ -120,7 +130,7 @@ const animateParticles = (time: number) => {
 };
 
 // ground object
-const groundGeometry = new THREE.PlaneGeometry(50, 50, 100, 100);
+const groundGeometry = new THREE.PlaneGeometry(200, 200, 50, 50);
 const groundAoTexture = textureLoader.load('textures/objects/Snow/ao.jpg');
 const groundColorTexture = textureLoader.load(
   'textures/objects/Snow/color.jpg'
@@ -136,11 +146,11 @@ const groundRoughTexture = textureLoader.load(
 );
 
 const groundMaterial = new THREE.MeshStandardMaterial({
-  metalness: 0,
+  metalness: 0.25,
   aoMap: groundAoTexture,
   map: groundColorTexture,
   displacementMap: groundHeightTexture,
-  displacementScale: 0.1,
+  displacementScale: 0.01,
   normalMap: groundNormalTexture,
   roughnessMap: groundRoughTexture,
 });
@@ -152,16 +162,29 @@ ground.geometry.setAttribute(
 );
 ground.rotation.x = -Math.PI * 0.5;
 ground.receiveShadow = true;
+ground.visible = true;
 scene.add(ground);
 
 // lightning
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(-5, 5, -5);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+directionalLight.position.set(25, 6, 5);
 directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 2048;
-directionalLight.shadow.mapSize.height = 2048;
-scene.add(ambientLight, directionalLight);
+directionalLight.shadow.mapSize.width = 1024;
+directionalLight.shadow.mapSize.height = 1024;
+const directionalLightHelper = new THREE.DirectionalLightHelper(
+  directionalLight,
+  3,
+  0xf300f3
+);
+directionalLightHelper.visible = false;
+
+scene.add(
+  ambientLight,
+  directionalLight,
+  directionalLight.target,
+  directionalLightHelper
+);
 
 // renderer
 const renderer = new THREE.WebGLRenderer({
@@ -193,11 +216,13 @@ const debugParams = {
     camera.updateProjectionMatrix();
     controls.dampingFactor = 0.05;
   },
+  enableAnimation: true,
   idleAnimation: () => {
     if (idleAction && walkAction && runAction) {
       walkAction.stop();
       runAction.stop();
       idleAction.play();
+      debugParams.enableAnimation = false;
     }
   },
   walkAnimation: () => {
@@ -205,6 +230,7 @@ const debugParams = {
       idleAction.stop();
       runAction.stop();
       walkAction.play();
+      debugParams.enableAnimation = true;
     }
   },
   runAnimation: () => {
@@ -212,19 +238,21 @@ const debugParams = {
       idleAction.stop();
       walkAction.stop();
       runAction.play();
+      debugParams.enableAnimation = true;
     }
   },
   disableAnimation: () => {
-    if (idleAction && walkAction && runAction) {
+    if (idleAction && walkAction && runAction && debugParams.enableAnimation) {
       idleAction.stop();
       walkAction.stop();
       runAction.stop();
+      debugParams.enableAnimation = false;
     }
   },
 };
 
 // camera debug
-const cameraDebug = gui.addFolder('Camera').open();
+const cameraDebug = gui.addFolder('Camera').close();
 cameraDebug.add(controls, 'autoRotate').name('Auto Rotate Cam');
 cameraDebug
   .add(camera, 'fov')
@@ -245,7 +273,7 @@ cameraDebug
 cameraDebug.add(debugParams, 'resetCam').name('Reset Camera Settings');
 
 // lighting debug
-const lightDebug = gui.addFolder('Lighting').open();
+const lightDebug = gui.addFolder('Lighting').close();
 lightDebug.add(ground, 'receiveShadow').name('Enable Shadow');
 lightDebug
   .add(ambientLight, 'intensity')
@@ -261,7 +289,7 @@ lightDebug
   .name('Light Intensity');
 
 // fox debug
-const foxDebug = gui.addFolder('Fox Animation').open();
+const foxDebug = gui.addFolder('Fox Animation').close();
 foxDebug.add(debugParams, 'idleAnimation').name('Idle');
 foxDebug.add(debugParams, 'walkAnimation').name('Walk');
 foxDebug.add(debugParams, 'runAnimation').name('Run');
@@ -278,6 +306,27 @@ const tick = () => {
 
   // animations
   if (mixer) mixer.update(deltaTime);
+  if (foxModel && debugParams.enableAnimation) {
+    foxModel.position.x = -Math.cos(elapsedTime / 5) * 30;
+    foxModel.position.z = Math.sin(elapsedTime / 5) * 30;
+    foxModel.rotation.y = elapsedTime / 5;
+
+    camera.position.z = foxModel.position.z + 1.75;
+
+    directionalLight.position.set(
+      foxModel.position.x + 25,
+      foxModel.position.y + 6,
+      foxModel.position.z + 5
+    );
+
+    directionalLight.target = foxModel;
+
+    controls.target = new THREE.Vector3(
+      foxModel.position.x,
+      foxModel.position.y + 1,
+      foxModel.position.z
+    );
+  }
   animateParticles(deltaTime);
 
   // constant update
