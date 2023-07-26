@@ -253,6 +253,7 @@ const debugParams = {
 
 // camera debug
 const cameraDebug = gui.addFolder('Camera').close();
+
 cameraDebug.add(controls, 'autoRotate').name('Auto Rotate Cam');
 cameraDebug
   .add(camera, 'fov')
@@ -295,6 +296,7 @@ foxDebug.add(debugParams, 'walkAnimation').name('Walk');
 foxDebug.add(debugParams, 'runAnimation').name('Run');
 foxDebug.add(debugParams, 'disableAnimation').name('Disable');
 
+// clock
 const clock = new THREE.Clock();
 let prevElapsedTime = 0;
 
